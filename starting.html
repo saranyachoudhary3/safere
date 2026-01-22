@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saferé</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --accent-pink: #ff758c;
+            --accent-blue: #4facfe;
+            --accent-green: #43e97b;
+            --accent-purple: #a18cd1;
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            overflow-x: hidden;
+            position: relative;
+            user-select: none;
+            padding-bottom: 20px;
+        }
+
+        /* Canvas Background */
+        #starCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 1rem; position: relative; z-index: 1; padding-bottom: 80px; }
+
+        header {
+            background: var(--glass-bg); backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border); border-radius: 25px;
+            padding: 1.5rem; text-align: center; box-shadow: var(--shadow);
+            margin-bottom: 1rem; animation: floatIn 1s ease-out;
+        }
+        h1 { margin: 0; font-weight: 900; background: -webkit-linear-gradient(#fff, #ffdde1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 2.5rem; letter-spacing: 1px; }
+
+        /* Navigation */
+        nav {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.6rem;
+            margin-bottom: 1.5rem;
+        }
+
+        button {
+            font-family: 'Nunito', sans-serif; padding: 0.7rem 0.3rem;
+            border: none; border-radius: 15px; cursor: pointer;
+            font-weight: 800; font-size: 0.8rem;
+            transition: transform 0.2s; position: relative;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            background: rgba(255, 255, 255, 0.15); color: white; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        button:active { transform: scale(0.95); }
+        .nav-btn.active { background: linear-gradient(135deg, var(--accent-pink), #ff7eb3); border: none; box-shadow: 0 0 15px rgba(255, 117, 140, 0.5); }
+
+        /* Panic Button Special Span */
+        .panic-container { grid-column: span 3; margin-top: 5px; }
+        .panic { width: 100%; background: linear-gradient(135deg, #ff416c, #ff4b2b); font-size: 1.1rem; padding: 1rem; animation: pulse 2s infinite; border: 2px solid rgba(255,255,255,0.3); flex-direction: row; }
+
+        /* Sections */
+        section {
+            background: rgba(20, 20, 40, 0.7); backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border); border-radius: 25px;
+            padding: 1.5rem; box-shadow: var(--shadow); display: none;
+            animation: slideUp 0.4s ease-out;
+            min-height: 400px;
+        }
+        section.active-section { display: block; }
+
+        h2 { margin-top: 0; border-bottom: 2px solid var(--accent-pink); padding-bottom: 0.5rem; display: inline-block; font-size: 1.4rem; }
+
+        /* --- CHATBOT STYLES --- */
+        #chat-container { display: flex; flex-direction: column; height: 400px; }
+        #chat-history { flex-grow: 1; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 15px; margin-bottom: 10px; }
+        .message { margin-bottom: 10px; max-width: 80%; padding: 10px 15px; border-radius: 20px; font-size: 0.9rem; line-height: 1.4; }
+        .bot-msg { background: rgba(255, 255, 255, 0.15); align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid rgba(255,255,255,0.1); }
+        .user-msg { background: var(--accent-pink); color: white; align-self: flex-end; margin-left: auto; border-bottom-right-radius: 2px; }
+        .chat-input-area { display: flex; gap: 10px; }
+        .chat-input-area input { flex: 1; }
+        .typing-indicator { font-size: 0.7rem; color: #aaa; margin-left: 10px; display: none; font-style: italic; }
+
+        /* --- ROUTES STYLES --- */
+        .route-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .route-btn { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; border: 2px solid transparent; transition: 0.3s; }
+        .route-btn:hover { border-color: var(--accent-blue); background: rgba(79, 172, 254, 0.2); transform: translateY(-3px); }
+        .route-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .scan-line { height: 4px; background: var(--accent-green); width: 0%; margin: 20px 0; border-radius: 2px; transition: width 2s ease-in-out; }
+
+        /* Shared Inputs */
+        input { width: 100%; padding: 12px; margin: 5px 0; border-radius: 12px; border: 2px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; box-sizing: border-box; text-align: center; }
+        input:focus { outline: none; border-color: var(--accent-pink); }
+
+        /* Tool Buttons */
+        .siren-btn { width: 100%; padding: 20px; font-size: 1.2rem; background: linear-gradient(135deg, #ff416c, #ff4b2b); margin-bottom: 15px; }
+        .siren-active { animation: flashRed 0.5s infinite; background: red !important; }
+
+        /* Overlays & Modals */
+        #flashlight-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: none; opacity: 0.95; }
+        #torch-btn { position: fixed; top: 20px; right: 20px; z-index: 10000; background: #333; color: white; border-radius: 50%; width: 50px; height: 50px; font-size: 1.5rem; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        
+        #fake-call-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; }
+        .call-avatar { width: 100px; height: 100px; background: #ddd; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 3rem; margin-bottom: 20px; animation: bounce 1s infinite; }
+        .call-actions { margin-top: 50px; display: flex; gap: 20px; }
+        .call-btn { width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; border: none; }
+        .answer { background: #4cd964; } .decline { background: #ff3b30; }
+
+        /* Toasts */
+        #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 3000; width: 90%; max-width: 350px; }
+        .toast { background: rgba(255, 255, 255, 0.95); color: #333; padding: 12px 20px; border-radius: 50px; margin-top: 10px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-weight: bold; border-left: 5px solid var(--accent-pink); animation: toastIn 0.4s; }
+
+        /* Animations */
+        @keyframes flashRed { 0% { background: red; } 50% { background: #500; } 100% { background: red; } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 65, 108, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0); } }
+        @keyframes floatIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <canvas id="starCanvas"></canvas>
+
+    <!-- Overlays -->
+    <div id="flashlight-overlay"></div>
+    <button id="torch-btn" onclick="toggleFlashlight()">🔦</button>
+    <div id="fake-call-modal">
+        <div class="call-avatar">👩</div>
+        <h2 style="font-size: 1.5rem; border:none;">Incoming Call...</h2>
+        <p style="font-size: 1.2rem; opacity: 0.8;">Mom 🏠</p>
+        <div class="call-actions">
+            <button class="call-btn answer" onclick="endFakeCall()">✓</button>
+            <button class="call-btn decline" onclick="endFakeCall()">✕</button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div class="container">
+        <header>
+            <h1>Saferé</h1>
+        </header>
+        
+        <nav>
+            <button id="toolsBtn" class="nav-btn active">🛠️<br>Tools</button>
+            <button id="timerBtn" class="nav-btn">⏱️<br>Timer</button>
+            <button id="chatBtn" class="nav-btn">🤖<br>AI Chat</button>
+            <button id="routesBtn" class="nav-btn">🗺️<br>Routes</button>
+            <button id="contactsBtn" class="nav-btn">📞<br>Contacts</button>
+            <button id="locationBtn" class="nav-btn">📍<br>Share</button>
+            
+            <div class="panic-container">
+                <button id="panicBtn" class="panic">🚨 PANIC MODE 🚨</button>
+            </div>
+        </nav>
+        
+        <main>
+            <!-- TOOLS SECTION -->
+            <section id="tools" class="active-section">
+                <h2>Tools 🛠️</h2>
+                <button class="siren-btn" id="sirenBtn" onclick="toggleSiren()">📢 ACTIVATE SIREN</button>
+                <button class="nav-btn" onclick="toggleFlashlight()" style="width:100%; margin-bottom: 10px; background: linear-gradient(to right, #fceabb, #f8b500); color: #333;">🔦 Bright Screen (Torch)</button>
+                
+                <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 15px; margin-top: 15px;">
+                    <h3 style="margin-top:0;">📱 Fake Call</h3>
+                    <select id="callDelay" style="width: 100%; padding: 10px; border-radius: 10px; margin-bottom: 10px;">
+                        <option value="3">In 3 seconds</option>
+                        <option value="10">In 10 seconds</option>
+                        <option value="30">In 30 seconds</option>
+                    </select>
+                    <button class="nav-btn" onclick="startFakeCall()" style="width:100%; background: var(--accent-blue);">📞 Trigger Call</button>
+                </div>
+            </section>
+
+            <!-- TIMER SECTION -->
+            <section id="timer">
+                <h2>Safety Timer ⏱️</h2>
+                <p style="text-align: center;">Set a timer for your walk. If you don't cancel, the alarm sounds.</p>
+                <input type="number" id="timerInput" value="5" placeholder="Minutes">
+                <div class="timer-display" id="timerDisplay" style="font-size: 3rem; font-weight: 900; text-align: center; margin: 20px 0; font-variant-numeric: tabular-nums; color: var(--accent-green);">05:00</div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="nav-btn" onclick="startSafetyTimer()" style="flex:1; background: var(--accent-green); color: #333;">Start</button>
+                    <button class="nav-btn" onclick="stopSafetyTimer()" style="flex:1;">Cancel</button>
+                </div>
+            </section>
+
+            <!-- AI CHAT SECTION -->
+            <section id="chat">
+                <h2>Saferé AI 🤖</h2>
+                <p style="font-size:0.8rem; color:#ccc;">I'm here to keep you company and give advice.</p>
+                
+                <div id="chat-container">
+                    <div id="chat-history">
+                        <div class="message bot-msg">Hi there! 🌸 I'm your Saferé AI. Feeling scared or need some safety tips? Just ask!</div>
+                    </div>
+                    <div class="typing-indicator" id="typing">Saferé AI is thinking...</div>
+                    <div class="chat-input-area">
+                        <input type="text" id="userMsg" placeholder="Type here..." onkeypress="handleEnter(event)">
+                        <button class="nav-btn" onclick="sendMessage()" style="padding: 0 1.5rem;">➤</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ROUTES SECTION -->
+            <section id="routes">
+                <h2>Safety Routes 🗺️</h2>
+                <p style="font-size: 0.9rem;">Plan your journey or find immediate help.</p>
+                
+                <div style="margin-top: 15px; text-align: center;">
+                    <div class="scan-line" id="scanLine"></div>
+                    <p id="routeStatus" style="color: var(--accent-green); height: 20px;">Ready to navigate...</p>
+                </div>
+
+                <div class="route-grid">
+                    <button class="route-btn" onclick="findSafePlace('police')">
+                        <span class="route-icon">👮</span>
+                        <strong>Police Station</strong>
+                    </button>
+                    <button class="route-btn" onclick="findSafePlace('hospital')">
+                        <span class="route-icon">🏥</span>
+                        <strong>Hospital</strong>
+                    </button>
+                    <button class="route-btn" onclick="findSafePlace('fire station')">
+                        <span class="route-icon">🚒</span>
+                        <strong>Fire Station</strong>
+                    </button>
+                    <button class="route-btn" onclick="simulateSafeWalk()">
+                        <span class="route-icon">🚶‍♀️</span>
+                        <strong>Safe Walk</strong>
+                    </button>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h3>Custom Destination</h3>
+                    <input type="text" id="destInput" placeholder="Enter address or place name">
+                    <button class="nav-btn" onclick="navigateToCustom()" style="width:100%; background: var(--accent-purple);">Navigate Now ✨</button>
+                </div>
+            </section>
+            
+            <!-- CONTACTS SECTION -->
+            <section id="contacts">
+                <h2>Contacts 👯‍♀️</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <a href="tel:911" class="nav-btn" style="flex:1; text-decoration: none; background: #ff3b30;">👮 911</a>
+                    <a href="tel:112" class="nav-btn" style="flex:1; text-decoration: none; background: #ffcc00; color: #333;">🚑 112</a>
+                </div>
+                <input type="text" id="contactName" placeholder="Name">
+                <input type="tel" id="contactPhone" placeholder="Number">
+                <button id="addContact" onclick="addContact()" style="width: 100%; margin-bottom: 15px;">Add ➕</button>
+                <ul id="contactList" style="list-style: none; padding: 0;"></ul>
+            </section>
+            
+            <!-- SHARE LOCATION SECTION -->
+            <section id="location">
+                <h2>Share Location 📍</h2>
+                <div style="text-align: center; padding: 20px;">
+                    <p id="locationStatus">Waiting for GPS...</p>
+                    <button id="getLocation" class="nav-btn" onclick="getLocation()" style="width: 100%;">🌍 Find Me</button>
+                    <button id="shareLocation" class="nav-btn" onclick="shareLocation()" style="width: 100%; margin-top: 10px; display: none; background: var(--accent-green); color: #333;">📤 Send Signal</button>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>Made with 💖 by Saranya</p>
+        </footer>
+    </div>
+
+
+    <script>
+        /* --- 1. BACKGROUND & UTILS --- */
+        const canvas = document.getElementById('starCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, stars = [];
+        function resize() { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; }
+        window.addEventListener('resize', resize); resize();
+        class Star {
+            constructor(){ this.reset(); }
+            reset() {
+                this.x = Math.random() * width; this.y = Math.random() * height;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedX = Math.random() * 0.5 - 0.25;
+                this.speedY = Math.random() * 0.5 - 0.25;
+                this.opacity = Math.random();
+                this.color = ['#ffffff', '#ffc3a0', '#ffafbd', '#c471ed'][Math.floor(Math.random()*4)];
+            }
+            update() {
+                this.x += this.speedX; this.y += this.speedY;
+                if(this.x<0)this.x=width; if(this.x>width)this.x=0; if(this.y<0)this.y=height; if(this.y>height)this.y=0;
+                this.opacity += (Math.random() - 0.5) * 0.05;
+                if(this.opacity<0.2)this.opacity=0.2; if(this.opacity>1)this.opacity=1;
+            }
+            draw() { ctx.globalAlpha = this.opacity; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill(); }
+        }
+        for(let i=0;i<80;i++) stars.push(new Star());
+        function animate() { ctx.clearRect(0,0,width,height); stars.forEach(s=>{s.update();s.draw();}); requestAnimationFrame(animate); }
+        animate();
+
+        function showToast(msg, type='info') {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = 'toast'; t.innerText = msg;
+            if(type==='error') t.style.borderLeftColor = 'red';
+            if(type==='success') t.style.borderLeftColor = '#00b09b';
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        /* --- 2. GLOBAL UI SOUND EFFECTS --- */
+        let uiAudioCtx = null;
+
+        function initUiAudio() {
+            if (!uiAudioCtx) {
+                uiAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (uiAudioCtx.state === 'suspended') {
+                uiAudioCtx.resume();
+            }
+        }
+
+        function playUiSound() {
+            initUiAudio();
+            const osc = uiAudioCtx.createOscillator();
+            const gain = uiAudioCtx.createGain();
+
+            osc.connect(gain);
+            gain.connect(uiAudioCtx.destination);
+
+            // Cute "Bloop" Sound
+            osc.type = 'sine';
+            // Randomize pitch slightly (700-900Hz) for variety
+            const freq = 700 + Math.random() * 200;
+            osc.frequency.setValueAtTime(freq, uiAudioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(freq * 1.5, uiAudioCtx.currentTime + 0.1);
+
+            gain.gain.setValueAtTime(0.05, uiAudioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, uiAudioCtx.currentTime + 0.1);
+
+            osc.start();
+            osc.stop(uiAudioCtx.currentTime + 0.1);
+        }
+
+        // Attach sound to all buttons/inputs
+        document.addEventListener('click', (e) => {
+            // Check if clicked element is a button, link, or input
+            const target = e.target;
+            const isInteractive = target.tagName === 'BUTTON' || target.tagName === 'A' || target.tagName === 'INPUT';
+            
+            // Don't play sound on Panic button (it has its own sound)
+            const isPanic = target.classList.contains('panic');
+
+            if (isInteractive && !isPanic) {
+                playUiSound();
+            }
+        });
+
+        /* --- 3. NAVIGATION --- */
+        const tabs = { tools: document.getElementById('tools'), timer: document.getElementById('timer'), chat: document.getElementById('chat'), routes: document.getElementById('routes'), contacts: document.getElementById('contacts'), location: document.getElementById('location') };
+        const btns = { tools: document.getElementById('toolsBtn'), timer: document.getElementById('timerBtn'), chat: document.getElementById('chatBtn'), routes: document.getElementById('routesBtn'), contacts: document.getElementById('contactsBtn'), location: document.getElementById('locationBtn') };
+
+        function switchTab(name) {
+            Object.values(tabs).forEach(t => t.classList.remove('active-section'));
+            Object.values(btns).forEach(b => b.classList.remove('active'));
+            tabs[name].classList.add('active-section');
+            btns[name].classList.add('active');
+        }
+        Object.keys(tabs).forEach(k => btns[k].onclick = () => switchTab(k));
+
+        /* --- 4. FEATURES (Siren, Light, Fake Call, Timer, Contacts, Location) --- */
+        let sirenAudioCtx = null, oscillator = null, gainNode = null, sirenInterval = null, isSirenOn = false;
+        function toggleSiren() {
+            const b = document.getElementById('sirenBtn');
+            if(!isSirenOn){
+                if(!sirenAudioCtx) sirenAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                isSirenOn = true; b.innerText = "🛑 STOP SIREN"; b.classList.add('siren-active');
+                document.body.style.background = "black";
+                if(sirenAudioCtx.state === 'suspended') sirenAudioCtx.resume();
+                oscillator = sirenAudioCtx.createOscillator(); gainNode = sirenAudioCtx.createGain();
+                oscillator.type = 'sawtooth'; oscillator.frequency.value = 800; gainNode.gain.value = 0.1;
+                oscillator.connect(gainNode); gainNode.connect(sirenAudioCtx.destination); oscillator.start();
+                let p=800, d=1;
+                sirenInterval = setInterval(()=>{
+                    p += d*15; if(p>1200)d=-1; if(p<400)d=1; oscillator.frequency.value = p;
+                }, 50);
+            } else {
+                isSirenOn = false; b.innerText = "📢 ACTIVATE SIREN"; b.classList.remove('siren-active');
+                document.body.style.background = "linear-gradient(to bottom, #0f0c29, #302b63, #24243e)";
+                if(sirenAudioCtx) sirenAudioCtx.suspend(); clearInterval(sirenInterval);
+            }
+        }
+        function toggleFlashlight(){
+            const o = document.getElementById('flashlight-overlay');
+            const tb = document.getElementById('torch-btn');
+            o.style.display = o.style.display === 'block' ? 'none' : 'block';
+            tb.style.display = o.style.display === 'block' ? 'block' : 'none';
+        }
+        let fakeCallTimeout = null;
+        function startFakeCall(){
+            const delay = document.getElementById('callDelay').value * 1000;
+            showToast(`Fake call in ${delay/1000}s...`);
+            fakeCallTimeout = setTimeout(()=>{
+                document.getElementById('fake-call-modal').style.display = 'flex';
+                if(!sirenAudioCtx) sirenAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = sirenAudioCtx.createOscillator(); const gn = sirenAudioCtx.createGain();
+                osc.connect(gn); gn.connect(sirenAudioCtx.destination); osc.frequency.value = 600; gn.gain.value = 0.1; osc.start();
+                setTimeout(()=>osc.stop(), 2000);
+            }, delay);
+        }
+        function endFakeCall(){ document.getElementById('fake-call-modal').style.display='none'; clearTimeout(fakeCallTimeout); }
+        let timerInterval = null;
+        function startSafetyTimer(){
+            stopSafetyTimer();
+            let total = (parseInt(document.getElementById('timerInput').value) || 5) * 60;
+            updateTimerDisplay(total);
+            showToast('Timer started! ✨', 'success');
+            timerInterval = setInterval(()=>{
+                total--; updateTimerDisplay(total);
+                if(total <= 0){
+                    stopSafetyTimer(); showToast('TIME EXPIRED! 🚨', 'error'); switchTab('tools'); if(!isSirenOn) toggleSiren();
+                }
+            }, 1000);
+        }
+        function stopSafetyTimer(){ clearInterval(timerInterval); document.getElementById('timerDisplay').innerText = "00:00"; }
+        function updateTimerDisplay(s){
+            const m = Math.floor(s/60).toString().padStart(2,'0');
+            const sec = (s%60).toString().padStart(2,'0');
+            document.getElementById('timerDisplay').innerText = `${m}:${sec}`;
+        }
+        let contacts = JSON.parse(localStorage.getItem('safeReContacts')) || [];
+        function updateContactList(){
+            const l = document.getElementById('contactList'); l.innerHTML='';
+            contacts.forEach((c,i)=>{
+                const li = document.createElement('li');
+                li.style.cssText = "background: rgba(255,255,255,0.05); padding:10px; margin-bottom:8px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;";
+                li.innerHTML = `<span><strong>${c.name}</strong></span><div><a href="tel:${c.phone}" style="color:#fff; margin-right:10px;">📞</a><button onclick="delContact(${i})" style="padding:2px 8px; background:#ff416c; border-radius:5px;">✕</button></div>`;
+                l.appendChild(li);
+            });
+            localStorage.setItem('safeReContacts', JSON.stringify(contacts));
+        }
+        function addContact(){
+            const n = document.getElementById('contactName').value, p = document.getElementById('contactPhone').value;
+            if(n&&p){ contacts.push({name:n,phone:p}); updateContactList(); document.getElementById('contactName').value=''; document.getElementById('contactPhone').value=''; showToast('Contact added!','success'); } else showToast('Fill details','error');
+        }
+        window.delContact = (i) => { contacts.splice(i,1); updateContactList(); };
+        updateContactList();
+        let currentLoc = null;
+        function getLocation(){
+            document.getElementById('locationStatus').innerText = "Locating...";
+            if(navigator.geolocation){
+                navigator.geolocation.getCurrentPosition(pos => {
+                    currentLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    document.getElementById('locationStatus').innerText = `Found: ${currentLoc.lat.toFixed(4)}, ${currentLoc.lng.toFixed(4)}`;
+                    document.getElementById('shareLocation').style.display = 'inline-block';
+                    showToast('Location acquired!','success');
+                }, () => showToast('Location denied.','error'));
+            }
+        }
+        function shareLocation(){
+            if(currentLoc){
+                const u = `https://maps.google.com/?q=${currentLoc.lat},${currentLoc.lng}`;
+                if(navigator.share) navigator.share({title:'Emergency',text:'Help me here:',url:u});
+                else window.open(`mailto:?subject=Emergency&body=${encodeURIComponent(u)}`);
+            }
+        }
+
+        /* --- 5. AI CHATBOT LOGIC --- */
+        const botKnowledge = {
+            "scared": "Don't worry, I'm right here with you. 🌸 Take a deep breath. Are you in immediate danger?",
+            "danger": "If you are in danger, please use the Panic button immediately! Is there a safe place nearby?",
+            "alone": "Walking alone can be scary. Keep your head up, stay alert, and maybe call a friend to chat while you walk.",
+            "route": "I can help you find a safe path! Try the 'Routes' tab to find the nearest police station or a well-lit path.",
+            "help": "I'm listening. Do you need emergency contacts, safety advice, or just someone to talk to?",
+            "walk": "Stay on well-lit streets. Avoid shortcuts through parks or alleys at night.",
+            "taxi": "If you feel unsafe waiting, try moving to a well-lit store or cafe. Only use official ride-share apps.",
+            "hello": "Hi! How can I help you feel safer today? 🌟",
+            "hi": "Hello there! Stay safe! ✨"
+        };
+
+        function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+        
+        function sendMessage() {
+            const input = document.getElementById('userMsg');
+            const history = document.getElementById('chat-history');
+            const text = input.value.trim().toLowerCase();
+            
+            if(!text) return;
+            
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user-msg';
+            userMsg.innerText = input.value;
+            history.appendChild(userMsg);
+            input.value = '';
+            history.scrollTop = history.scrollHeight;
+
+            const typing = document.getElementById('typing');
+            typing.style.display = 'block';
+            history.scrollTop = history.scrollHeight;
+
+            setTimeout(() => {
+                typing.style.display = 'none';
+                let response = "I'm not sure I understand. Try asking about 'danger', 'routes', or 'walk'.";
+                for (const key in botKnowledge) {
+                    if (text.includes(key)) { response = botKnowledge[key]; break; }
+                }
+                const botMsg = document.createElement('div');
+                botMsg.className = 'message bot-msg';
+                botMsg.innerText = response;
+                history.appendChild(botMsg);
+                history.scrollTop = history.scrollHeight;
+            }, 1000);
+        }
+
+        /* --- 6. ROUTES LOGIC --- */
+        function findSafePlace(type) {
+            const status = document.getElementById('routeStatus');
+            const line = document.getElementById('scanLine');
+            
+            status.innerText = "Scanning for nearest safe location...";
+            line.style.width = "0%";
+            
+            setTimeout(() => {
+                line.style.width = "100%";
+                status.innerText = "Found! Opening Maps...";
+            }, 500);
+
+            setTimeout(() => {
+                if (currentLoc) {
+                    const query = encodeURIComponent(type);
+                    const url = `https://www.google.com/maps/search/${query}/@${currentLoc.lat},${currentLoc.lng},14z`;
+                    window.open(url, '_blank');
+                    showToast(`Finding ${type}...`, 'success');
+                } else {
+                    showToast("Getting location first...", 'info');
+                    getLocation();
+                }
+            }, 1500);
+        }
+
+        function simulateSafeWalk() {
+            showToast("Calculating safest walking path... 🚶‍♀️", 'info');
+            setTimeout(() => {
+                if (currentLoc) {
+                    const url = `https://www.google.com/maps/dir/@${currentLoc.lat},${currentLoc.lng},14z/data=!4m2!4m1!3e2`;
+                    window.open(url, '_blank');
+                    showToast("Walking mode enabled!", 'success');
+                } else {
+                    getLocation();
+                }
+            }, 1000);
+        }
+
+        function navigateToCustom() {
+            const dest = document.getElementById('destInput').value;
+            if(!dest) { showToast("Enter a destination", "error"); return; }
+            if(currentLoc) {
+                const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLoc.lat},${currentLoc.lng}&destination=${encodeURIComponent(dest)}&travelmode=walking`;
+                window.open(url, '_blank');
+                showToast("Navigating...", "success");
+            } else {
+                getLocation();
+            }
+        }
+
+        /* --- 7. PANIC MODE --- */
+        document.getElementById('panicBtn').onclick = () => {
+            showToast('🚨 PANIC MODE 🚨', 'error');
+            if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
+            if(!isSirenOn) toggleSiren();
+            if(!currentLoc) getLocation(); else shareLocation();
+        };
+
+    </script>
+</body>
+</html>
